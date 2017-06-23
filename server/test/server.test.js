@@ -4,25 +4,12 @@ const {ObjectID} = require('mongodb');
 
 const {app} = require('./../server');
 const {Todo} = require('./../models/todo');
+const {users} = require('./../models/users');
+const {todos, populateTodos,User, populateUsers} = require('./seed/seed');
 
 
-const todos = [{
-  _id : new ObjectID(),
-  text: 'First test todo'
-},
-{
-  _id : new ObjectID(),
-  text: 'Second test Todo',
-  completed: true,
-  completedAt:333
-}];
-
-
-beforeEach((done) => {
-  Todo.remove({}).then (() => {
-    return Todo.insertMany(todos);
-  }).then(() => done());
-});
+beforeEach(populateUsers);
+beforeEach(populateTodos);
 
 describe('POST /todos', () => {
   it('Should create a new todo ', (done) => {
@@ -202,4 +189,81 @@ describe('Patch /todos/:id', () => {
       .end(done);
   });
 
+});
+
+describe('Get / users/me', () => {
+
+  it('should retrun user if authenticated', (done) => {
+    request(app)
+    .get('/users/me')
+    .set('x-auth', User[0].tokens[0].token)
+    .expect(200)
+    .expect((res) => {
+      expect(res.body._id).toBe(User[0]._id.toHexString());
+      expect(res.body.email).toBe(User[0].email);
+    })
+    .end(done);
+  });
+
+it('should return 401 if not authenticated', done => {
+request(app)
+  .get('/users/me')
+  .expect(401)
+  .expect((res) => {
+    expect(res.body).toEqual({});
+  })
+  .end(done)
 })
+}) ; // end describe
+
+describe('Post /USERS', () => {
+  it('Should create a user', (done) =>{
+    var email = 'expamle@expamle.com';
+    var password = '1234ff';
+
+    request(app)
+    .post('/users')
+    .send({email, password})
+    .expect(200)
+    .expect((res) => {
+      expect(res.headers['x-auth']).toExist();
+      expect(res.body._id).toExist();
+      expect(res.body.email).toBe(email);
+    })
+    .end((err) => {
+      if (err){
+        return done(err);
+      }
+      users.findOne({email}).then((user) => {
+        expect(user).toExist();
+        expect(user.password).toNotBe(password);
+        done();
+      });
+    });
+  });
+
+  it('should return validation error ', (done) => {
+    var email = 'expamle';
+    var password = '12';
+
+    request(app)
+    .post('/users')
+    .send({email, password})
+    .expect(400)
+
+    .end(done);
+  });
+
+it('should not create user email if it in user ', (done) => {
+
+
+
+  request(app)
+  .post('/users')
+  .send({email: User[0].email})
+  .expect(400)
+
+  .end(done);
+
+});
+});// end describe
