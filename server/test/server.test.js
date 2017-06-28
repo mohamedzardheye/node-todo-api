@@ -267,3 +267,52 @@ it('should not create user email if it in user ', (done) => {
 
 });
 });// end describe
+
+describe('Post /users/login', () => {
+  it('should login user and retrun auth token', (done) => {
+    request(app)
+    .post('/users/login')
+    .send({
+      email: User[1].email,
+      password: User[1].password
+    })
+    .expect(200)
+    .expect((res) => {
+      expect(res.header['x-auth']).toExist();
+      })
+      .end((err, res) => {
+        if(err) {
+          return done(err);
+        }
+        users.findById(User[1]._id).then((user) => {
+          expect(user.tokens[0]).toInclude({
+            access: 'auth',
+            token: res.headers['x-auth']
+          });
+          done();
+        }).catch((e) => done(e));
+      });
+  });
+  it('should reject in valid ', (done) => {
+
+    request(app)
+    .post('/users/login')
+    .send({
+      email: User[1].email,
+      password: User[1].password +'1'
+    })
+    .expect(400)
+    .expect((res) => {
+      expect(res.header['x-auth']).toNotExist();
+      })
+      .end((err, res) => {
+        if(err) {
+          return done(err);
+        }
+        users.findById(User[1]._id).then((user) => {
+          expect(user.tokens.length).toBe(0);
+          done();
+        }).catch((e) => done(e));
+      });
+  });
+})
